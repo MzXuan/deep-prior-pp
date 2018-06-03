@@ -129,7 +129,11 @@ def rotatePoint3D(p1, center, angle_x, angle_y, angle_z):
     :param angle_z: angle around z-axis in deg
     :return: rotated point
     """
+
     pp = p1.copy()
+    pp = numpy.array(pp,dtype=numpy.float64)
+    center = numpy.array(center,dtype=numpy.float64)
+
     pp -= center
     R = getRotationMatrix(angle_x, angle_y, angle_z)
     pr = numpy.array([pp[0], pp[1], pp[2], 1])

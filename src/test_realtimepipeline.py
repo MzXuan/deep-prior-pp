@@ -30,7 +30,8 @@ from net.resnet import ResNetParams, ResNet
 from net.scalenet import ScaleNetParams, ScaleNet
 from util.realtimehandposepipeline import RealtimeHandposePipeline
 from data.importers import ICVLImporter, NYUImporter, MSRA15Importer
-from util.cameradevice import CreativeCameraDevice, FileDevice
+# from util.cameradevice import CreativeCameraDevice, FileDevice
+from util.cameradevice import FileDevice
 
 
 __author__ = "Markus Oberweger <oberweger@icg.tugraz.at>"
@@ -53,26 +54,43 @@ if __name__ == '__main__':
     # Seq2 = di.loadSequence('test_seq_1')
     # testSeqs = [Seq2]
 
-    di = NYUImporter('../data/NYU/')
-    Seq2 = di.loadSequence('test_1')
-    testSeqs = [Seq2]
+    # di = NYUImporter('../data/NYU/')
+    # Seq2 = di.loadSequence('test_1')
+    # testSeqs = [Seq2]
+
+    di = NYUImporter('../data/NYU/') # only read file names
+    Seq2 = di.loadFileNames('test_1')
+    testSeqs = Seq2
 
     # load trained network
     poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=1, numJoints=14, nDims=3)
     poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
+    # poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
+    # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
     comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=1, resizeFactor=2, numJoints=1, nDims=3)
     comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
+    # comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
+    # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
     config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
     # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
     # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
     rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
 
-    # use filenames
-    filenames = []
-    for i in testSeqs[0].data:
-        filenames.append(i.fileName)
-    dev = FileDevice(filenames, di)
+    # # use filenames
+    # filenames = []
+    # for i in testSeqs[0].data:
+    #     print ("file names: ")
+    #     print (i.fileName)
+    #     filenames.append(i.fileName)
+    # dev = FileDevice(filenames, di)
+    #
+    # # use depth camera
+    # # dev = CreativeCameraDevice(mirror=True)
+    # rtp.processVideoThreaded(dev)
 
-    # use depth camera
-    # dev = CreativeCameraDevice(mirror=True)
+    #use filenames
+    filenames = testSeqs
+    dev = FileDevice(filenames,di)
     rtp.processVideoThreaded(dev)
+
+

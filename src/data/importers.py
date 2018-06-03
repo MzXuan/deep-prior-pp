@@ -25,7 +25,7 @@ along with DeepPrior.  If not, see <http://www.gnu.org/licenses/>.
 import scipy.io
 import numpy as np
 from PIL import Image
-import os
+import glob, os
 import progressbar as pb
 import struct
 from data.basetypes import DepthFrame, NamedImgSequence
@@ -1075,6 +1075,54 @@ class NYUImporter(DepthImporter):
             print("Shuffling")
             rng.shuffle(data)
         return NamedImgSequence(seqName, data, config)
+
+    def loadFileNames(self, seqName, Nmax=float('inf'), shuffle=False, rng=None, docom=False, cube=None):
+        """
+                Load an image sequence from the dataset (without label for test data)
+                :param seqName: sequence name, e.g. test
+                :param Nmax: maximum number of samples to load
+                :return: returns named image sequence
+                """
+        if cube is None:
+            config = {'cube': self.default_cubes[seqName]}
+        else:
+            assert isinstance(cube, tuple)
+            assert len(cube) == 3
+            config = {'cube': cube}
+
+        pickleCache = '{}/{}_{}_{}_{}_{}_{}__cache.pkl'.format(self.cacheDir, self.__class__.__name__, seqName,
+                                                               self.hand, self.allJoints,
+                                                               HandDetector.detectionModeToString(docom,
+                                                                                                  self.refineNet is not None),
+                                                               config['cube'][0])
+        if self.useCache:
+            if os.path.isfile(pickleCache):
+                print("Loading cache data from {}".format(pickleCache))
+                f = open(pickleCache, 'rb')
+                (seqName, data, config) = cPickle.load(f)
+                f.close()
+
+                # shuffle data
+                if shuffle and rng is not None:
+                    print("Shuffling")
+                    rng.shuffle(data)
+                if not (np.isinf(Nmax)):
+                    return NamedImgSequence(seqName, data[0:Nmax], config)
+                else:
+                    return NamedImgSequence(seqName, data, config)
+
+        self.loadRefineNetLazy(self.refineNet)
+
+        # Load the dataset
+        objdir = '{}/{}/'.format(self.basepath, seqName)
+        seqNames = []
+
+        for file in os.listdir(objdir):
+            if file.endswith(".png"):
+                depth_path = os.path.join(objdir,file)
+                seqNames.append(depth_path)
+
+        return seqNames
 
     def loadBaseline(self, filename, gt=None):
         """

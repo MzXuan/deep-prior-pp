@@ -27,8 +27,8 @@ import time
 import numpy
 import cv2
 import scipy.misc
-import lib_dscapture as dsc
-import openni
+# import lib_dscapture as dsc
+# import openni
 
 __author__ = "Markus Oberweger <oberweger@icg.tugraz.at>"
 __copyright__ = "Copyright 2015, ICG, Graz University of Technology, Austria"

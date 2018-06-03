@@ -114,12 +114,15 @@ class RealtimeHandposePipeline(object):
         :return: 
         """
         # Force network to compile output in the beginning
+
         if isinstance(self.poseNet, PoseRegNetParams):
             self.poseNet = PoseRegNet(numpy.random.RandomState(23455), cfgParams=self.poseNet)
             self.poseNet.computeOutput(numpy.zeros(self.poseNet.cfgParams.inputDim, dtype='float32'))
+            # self.poseNet.computeOutput(numpy.zeros(self.poseNet.inputDim, dtype='float32'))
         elif isinstance(self.poseNet, ResNetParams):
             self.poseNet = ResNet(numpy.random.RandomState(23455), cfgParams=self.poseNet)
             self.poseNet.computeOutput(numpy.zeros(self.poseNet.cfgParams.inputDim, dtype='float32'))
+            # self.poseNet.computeOutput(numpy.zeros(self.poseNet.inputDim, dtype='float32'))
         else:
             raise RuntimeError("Unknown pose estimation method!")
 
