@@ -63,11 +63,11 @@ if __name__ == '__main__':
     testSeqs = Seq2
 
     # load trained network
-    poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=1, numJoints=14, nDims=3)
+    poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=64, numJoints=14, nDims=3)
     poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
     # poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
     # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
-    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=1, resizeFactor=2, numJoints=1, nDims=3)
+    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=64, resizeFactor=2, numJoints=1, nDims=3)
     comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
     # comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
     # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
@@ -91,6 +91,7 @@ if __name__ == '__main__':
     #use filenames
     filenames = testSeqs
     dev = FileDevice(filenames,di)
-    rtp.processVideoThreaded(dev)
+    # rtp.processVideoThreaded(dev)
+    rtp.processVideo(dev)
 
 

@@ -212,7 +212,9 @@ class RealtimeHandposePipeline(object):
                 cv2.imshow('pose', poseimg)
             if self.show_crop:
                 cv2.imshow('crop', numpy.clip((frm['crop'] + 1.)*128., 0, 255).astype('uint8'))
+            # self.processKey(cv2.waitKey(5) & 0xFF)
             self.processKey(cv2.waitKey(1) & 0xFF)
+            # print ("0")
             if self.verbose is True:
                 print("{}ms display".format((time.time() - starts)*1000.))
 
@@ -288,6 +290,8 @@ class RealtimeHandposePipeline(object):
             if self.show_crop:
                 cv2.imshow('crop', numpy.clip((crop + 1.)*128., 0, 255).astype('uint8'))
             self.processKey(cv2.waitKey(1) & 0xFF)
+            # print ("1")
+            # self.processKey(cv2.waitKey(1) & 0xFF)
             if self.verbose is True:
                 print("{}ms display".format((time.time() - starts)*1000.))
                 print("-> {}ms per frame".format((time.time() - start)*1000.))
