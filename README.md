@@ -2,7 +2,10 @@
 
 Author: Markus Oberweger <oberweger@icg.tugraz.at>
 
+(Edited that can run pipeline on Ubuntu 16.04, CUDA 9.0, cuDNN 7, theano 1.0.2 )
+
 ## Requirements:
+
   * OS
     * Ubuntu 14.04
     * CUDA 7 + cuDNN 5
