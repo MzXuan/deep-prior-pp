@@ -29,7 +29,7 @@ from net.poseregnet import PoseRegNetParams, PoseRegNet
 from net.resnet import ResNetParams, ResNet
 from net.scalenet import ScaleNetParams, ScaleNet
 from util.realtimehandposepipeline import RealtimeHandposePipeline
-from data.importers import ICVLImporter, NYUImporter, MSRA15Importer
+from data.importers import ICVLImporter, NYUImporter, MSRA15Importer, MYImporter320, MYImporter
 # from util.cameradevice import CreativeCameraDevice, FileDevice
 from util.cameradevice import FileDevice
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     rng = numpy.random.RandomState(23455)
 
     # di = MSRA15Importer('../data/MSRA15/')
-    # Seq2 = di.loadSequence('P0')
+    # Seq2 = di.loadSequence('P1')
     # testSeqs = [Seq2]
 
     # di = ICVLImporter('../data/ICVL/')
@@ -58,38 +58,60 @@ if __name__ == '__main__':
     # Seq2 = di.loadSequence('test_1')
     # testSeqs = [Seq2]
 
-    di = NYUImporter('../data/NYU/') # only read file names
-    Seq2 = di.loadFileNames('test_1')
+    # di = NYUImporter('../data/NYU/') # only read file names
+    # Seq2 = di.loadFileNames('test_1')
+    # testSeqs = Seq2
+    #
+    di = MYImporter320('/home/xuan/Code/RealSense2Sample/data/')  # only read file names
+    Seq2 = di.loadFileNames('data320')
     testSeqs = Seq2
 
-    # load trained network
-    poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=64, numJoints=14, nDims=3)
-    poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
-    # poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
-    # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
-    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=64, resizeFactor=2, numJoints=1, nDims=3)
-    comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
-    # comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
-    # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
-    config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
+    # di = MYImporter('/home/xuan/Code/RealSense2Sample/data/')  # only read file names
+    # Seq2 = di.loadFileNames('data640')
+    # testSeqs = Seq2
+
+    # # MSRA model
+    poseNetParams = PoseRegNetParams(type=11, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=21, nDims=3)
+    poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
+    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1,
+                                     nDims=3)
+    comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
+    # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
+    config = {'fx': 315.066, 'fy': 315.066, 'cube': (200, 200, 200)}
+    # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250, 250, 250)}
     # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
     # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
     rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
 
-    # # use filenames
+    # # # use filenames
     # filenames = []
     # for i in testSeqs[0].data:
-    #     print ("file names: ")
-    #     print (i.fileName)
+    #     # print ("file names: ")
+    #     # print (i.fileName)
     #     filenames.append(i.fileName)
     # dev = FileDevice(filenames, di)
     #
     # # use depth camera
-    # # dev = CreativeCameraDevice(mirror=True)
-    # rtp.processVideoThreaded(dev)
+    # rtp.processVideo(dev)
+
+
+    # # NYU model
+    # # load trained network (NYU model)
+    # poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=14, nDims=3)
+    # poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
+    # # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
+    # comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1, nDims=3)
+    # comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
+    # # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
+    # # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
+    # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250,250,250)}
+    # # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
+    # # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
+    # rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
 
     #use filenames
     filenames = testSeqs
+    # print filenames
     dev = FileDevice(filenames,di)
     # rtp.processVideoThreaded(dev)
     rtp.processVideo(dev)

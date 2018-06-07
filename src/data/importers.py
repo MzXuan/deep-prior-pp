@@ -888,9 +888,9 @@ class NYUImporter(DepthImporter):
         :return:
         """
 
-        super(NYUImporter, self).__init__(588.03, 587.07, 320., 240., hand)
+        super(NYUImporter, self).__init__(630.131, 630.131, 320., 240., hand)
 
-        self.depth_map_size = (640, 480)
+        self.depth_map_size = (640, 480) # FLAG: notice size!!!
         self.basepath = basepath
         self.useCache = useCache
         self.cacheDir = cacheDir
@@ -907,7 +907,9 @@ class NYUImporter(DepthImporter):
                               'train_synth': (300, 300, 300),
                               'test_synth_1': (300, 300, 300),
                               'test_synth_2': (250, 250, 250),
-                              'test_synth': (300, 300, 300)}
+                              'test_synth': (300, 300, 300),
+                              'data640': (250, 250, 250),
+                              'data320': (250, 250, 250)}
         self.sides = {'train': 'right', 'test_1': 'right', 'test_2': 'right', 'test': 'right', 'train_synth': 'right',
                       'test_synth_1': 'right', 'test_synth_2': 'right', 'test_synth': 'right'}
         # joint indices used for evaluation of Tompson et al.
@@ -929,6 +931,8 @@ class NYUImporter(DepthImporter):
         g = np.asarray(g, np.int32)
         b = np.asarray(b, np.int32)
         dpt = np.bitwise_or(np.left_shift(g, 8), b)
+
+        # print ("R:,",r, "g:, ",g ,"b: ",b)
         imgdata = np.asarray(dpt, np.float32)
 
         return imgdata
@@ -1116,11 +1120,16 @@ class NYUImporter(DepthImporter):
         # Load the dataset
         objdir = '{}/{}/'.format(self.basepath, seqName)
         seqNames = []
+        sort_names = []
 
         for file in os.listdir(objdir):
             if file.endswith(".png"):
-                depth_path = os.path.join(objdir,file)
-                seqNames.append(depth_path)
+                sort_names.append(file)
+        sort_names = sorted(sort_names)
+        for img_name in sort_names:
+            depth_path = os.path.join(objdir,img_name)
+            # print depth_path
+            seqNames.append(depth_path)
 
         return seqNames
 
@@ -1356,3 +1365,693 @@ class NYUImporter(DepthImporter):
         # combine x,y,depth
         return np.column_stack((row, col, depth))
 
+
+class MYImporter320(DepthImporter):
+    """
+    provide functionality to load data from the NYU hand dataset
+    """
+
+    def __init__(self, basepath, useCache=True, cacheDir='./cache/', refineNet=None,
+                 allJoints=False, hand=None):
+        """
+        Constructor
+        :param basepath: base path of the ICVL dataset
+        :return:
+        """
+        super(MYImporter320, self).__init__(315.066, 315.066, 160., 120., hand)
+
+        self.depth_map_size = (320, 240) # FLAG: notice size!!!
+        self.basepath = basepath
+        self.useCache = useCache
+        self.cacheDir = cacheDir
+        self.allJoints = allJoints
+        self.numJoints = 36
+        if self.allJoints:
+            self.crop_joint_idx = 32
+        else:
+            self.crop_joint_idx = 13
+        self.default_cubes = {'data640': (250, 250, 250),
+                              'data320': (250, 250, 250)}
+        # self.sides = {'train': 'right', 'test_1': 'right', 'test_2': 'right', 'test': 'right', 'train_synth': 'right',
+        #               'test_synth_1': 'right', 'test_synth_2': 'right', 'test_synth': 'right'}
+        # # joint indices used for evaluation of Tompson et al.
+        self.restrictedJointsEval = [0, 3, 6, 9, 12, 15, 18, 21, 24, 25, 27, 30, 31, 32]
+        self.refineNet = refineNet
+
+    def loadDepthMap(self, filename):
+        """
+        Read a depth-map
+        :param filename: file name to load
+        :return: image data of depth image
+        """
+
+        img = Image.open(filename)
+        # top 8 bits of depth are packed into green channel and lower 8 bits into blue
+        assert len(img.getbands()) == 3
+        r, g, b = img.split()
+        r = np.asarray(r, np.int32)
+        g = np.asarray(g, np.int32)
+        b = np.asarray(b, np.int32)
+        dpt = np.bitwise_or(np.left_shift(g, 8), b)
+
+        # print ("R:,",r, "g:, ",g ,"b: ",b)
+        imgdata = np.asarray(dpt, np.float32)
+
+        return imgdata
+
+    def getDepthMapNV(self):
+        """
+        Get the value of invalid depth values in the depth map
+        :return: value
+        """
+        return 32001
+
+    def loadFileNames(self, seqName, Nmax=float('inf'), shuffle=False, rng=None, docom=False, cube=None):
+        """
+                Load an image sequence from the dataset (without label for test data)
+                :param seqName: sequence name, e.g. test
+                :param Nmax: maximum number of samples to load
+                :return: returns named image sequence
+                """
+        if cube is None:
+            config = {'cube': self.default_cubes[seqName]}
+        else:
+            assert isinstance(cube, tuple)
+            assert len(cube) == 3
+            config = {'cube': cube}
+
+        pickleCache = '{}/{}_{}_{}_{}_{}_{}__cache.pkl'.format(self.cacheDir, self.__class__.__name__, seqName,
+                                                               self.hand, self.allJoints,
+                                                               HandDetector.detectionModeToString(docom,
+                                                                                                  self.refineNet is not None),
+                                                               config['cube'][0])
+        if self.useCache:
+            if os.path.isfile(pickleCache):
+                print("Loading cache data from {}".format(pickleCache))
+                f = open(pickleCache, 'rb')
+                (seqName, data, config) = cPickle.load(f)
+                f.close()
+
+                # shuffle data
+                if shuffle and rng is not None:
+                    print("Shuffling")
+                    rng.shuffle(data)
+                if not (np.isinf(Nmax)):
+                    return NamedImgSequence(seqName, data[0:Nmax], config)
+                else:
+                    return NamedImgSequence(seqName, data, config)
+
+        self.loadRefineNetLazy(self.refineNet)
+
+        # Load the dataset
+        objdir = '{}/{}/'.format(self.basepath, seqName)
+        seqNames = []
+        sort_names = []
+
+        for file in os.listdir(objdir):
+            if file.endswith(".png"):
+                sort_names.append(file)
+        sort_names = sorted(sort_names)
+        for img_name in sort_names:
+            depth_path = os.path.join(objdir,img_name)
+            # print depth_path
+            seqNames.append(depth_path)
+
+        return seqNames
+
+    def loadBaseline(self, filename, gt=None):
+        """
+        Load baseline data
+        :param filename: file name of data
+        :return: list with joint coordinates
+        """
+
+        if gt is not None:
+            mat = scipy.io.loadmat(filename)
+            names = mat['conv_joint_names'][0]
+            joints = mat['pred_joint_uvconf'][0]
+
+            self.numJoints = names.shape[0]
+
+            data = []
+            for dat in range(min(joints.shape[0], gt.shape[0])):
+                fname = '{0:s}/depth_1_{1:07d}.png'.format(os.path.split(filename)[0], dat+1)
+                if not os.path.isfile(fname):
+                    continue
+                dm = self.loadDepthMap(fname)
+                # joints in image coordinates
+                ev = np.zeros((self.numJoints, 3), np.float32)
+                jt = 0
+                for i in range(joints.shape[1]):
+                    if np.count_nonzero(joints[dat, i, :]) == 0:
+                        continue
+                    ev[jt, 0] = joints[dat, i, 0]
+                    ev[jt, 1] = joints[dat, i, 1]
+                    ev[jt, 2] = dm[int(ev[jt, 1]), int(ev[jt, 0])]
+                    jt += 1
+
+                for jt in range(ev.shape[0]):
+                    #if ev[jt,2] == 2001. or ev[jt,2] == 0.:
+                    if abs(ev[jt, 2] - gt[dat, 13, 2]) > 150.:
+                        ev[jt, 2] = gt[dat, jt, 2]#np.clip(ev[jt,2],gt[dat,13,2]-150.,gt[dat,13,2]+150.) # set to groundtruth if unknown
+
+                ev3D = self.jointsImgTo3D(ev)
+                data.append(ev3D)
+
+            return data
+        else:
+
+            def nonblank_lines(f):
+                for l in f:
+                    line = l.rstrip()
+                    if line:
+                        yield line
+
+            inputfile = open(filename)
+            # first line specifies the number of 3D joints
+            self.numJoints = len(inputfile.readline().split(' ')) / 3
+            inputfile.seek(0)
+
+            data = []
+            for line in nonblank_lines(inputfile):
+                part = line.split(' ')
+                # joints in image coordinates
+                ev = np.zeros((self.numJoints, 3), np.float32)
+                for joint in range(ev.shape[0]):
+                    for xyz in range(0, 3):
+                        ev[joint, xyz] = part[joint*3+xyz]
+
+                gt3Dworld = self.jointsImgTo3D(ev)
+
+                data.append(gt3Dworld)
+
+            return data
+
+    def loadBaseline2D(self, filename):
+        """
+        Load baseline data
+        :param filename: file name of data
+        :return: list with joint coordinates
+        """
+
+        mat = scipy.io.loadmat(filename)
+        names = mat['conv_joint_names'][0]
+        joints = mat['pred_joint_uvconf'][0]
+
+        self.numJoints = names.shape[0]
+
+        data = []
+        for dat in range(joints.shape[0]):
+            # joints in image coordinates
+            ev = np.zeros((self.numJoints, 2), np.float32)
+            jt = 0
+            for i in range(joints.shape[1]):
+                if np.count_nonzero(joints[dat, i, :]) == 0:
+                    continue
+                ev[jt, 0] = joints[dat, i, 0]
+                ev[jt, 1] = joints[dat, i, 1]
+                jt += 1
+
+            data.append(ev)
+
+        return data
+
+    def jointsImgTo3D(self, sample):
+        """
+        Normalize sample to metric 3D
+        :param sample: joints in (x,y,z) with x,y in image coordinates and z in mm
+        :return: normalized joints in mm
+        """
+        ret = np.zeros((sample.shape[0], 3), np.float32)
+        for i in xrange(sample.shape[0]):
+            ret[i] = self.jointImgTo3D(sample[i])
+        return ret
+
+    def jointImgTo3D(self, sample):
+        """
+        Normalize sample to metric 3D
+        :param sample: joints in (x,y,z) with x,y in image coordinates and z in mm
+        :return: normalized joints in mm
+        """
+        ret = np.zeros((3,), np.float32)
+        ret[0] = (sample[0] - self.ux) * sample[2] / self.fx
+        ret[1] = (self.uy - sample[1]) * sample[2] / self.fy
+        ret[2] = sample[2]
+        return ret
+
+    def joints3DToImg(self, sample):
+        """
+        Denormalize sample from metric 3D to image coordinates
+        :param sample: joints in (x,y,z) with x,y and z in mm
+        :return: joints in (x,y,z) with x,y in image coordinates and z in mm
+        """
+        ret = np.zeros((sample.shape[0], 3), np.float32)
+        for i in xrange(sample.shape[0]):
+            ret[i] = self.joint3DToImg(sample[i])
+        return ret
+
+    def joint3DToImg(self, sample):
+        """
+        Denormalize sample from metric 3D to image coordinates
+        :param sample: joints in (x,y,z) with x,y and z in mm
+        :return: joints in (x,y,z) with x,y in image coordinates and z in mm
+        """
+        ret = np.zeros((3, ), np.float32)
+        if sample[2] == 0.:
+            ret[0] = self.ux
+            ret[1] = self.uy
+            return ret
+        ret[0] = sample[0]/sample[2]*self.fx+self.ux
+        ret[1] = self.uy-sample[1]/sample[2]*self.fy
+        ret[2] = sample[2]
+        return ret
+
+    def getCameraIntrinsics(self):
+        """
+        Get intrinsic camera matrix
+        :return: 3x3 intrinsic camera matrix
+        """
+        ret = np.zeros((3, 3), np.float32)
+        ret[0, 0] = self.fx
+        ret[1, 1] = -self.fy
+        ret[2, 2] = 1
+        ret[0, 2] = self.ux
+        ret[1, 2] = self.uy
+        return ret
+
+    def getCameraProjection(self):
+        """
+        Get homogenous camera projection matrix
+        :return: 4x4 camera projection matrix
+        """
+        ret = np.zeros((4, 4), np.float32)
+        ret[0, 0] = self.fx
+        ret[1, 1] = -self.fy
+        ret[2, 2] = 1.
+        ret[0, 2] = self.ux
+        ret[1, 2] = self.uy
+        ret[3, 2] = 1.
+        return ret
+
+    def showAnnotatedDepth(self, frame):
+        """
+        Show the depth image
+        :param frame: image to show
+        :return:
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        print("img min {}, max {}".format(frame.dpt.min(), frame.dpt.max()))
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(frame.dpt, cmap=matplotlib.cm.jet, interpolation='nearest')
+        ax.scatter(frame.gtcrop[:, 0], frame.gtcrop[:, 1])
+
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[1::-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[1::-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[3:1:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[3:1:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[5:3:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[5:3:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[7:5:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[7:5:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[10:7:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[10:7:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[11, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[11, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[12, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[12, 1])), c='r')
+
+        def format_coord(x, y):
+            numrows, numcols = frame.dpt.shape
+            col = int(x+0.5)
+            row = int(y+0.5)
+            if col>=0 and col<numcols and row>=0 and row<numrows:
+                z = frame.dpt[row,col]
+                return 'x=%1.4f, y=%1.4f, z=%1.4f' % (x, y, z)
+            else:
+                return 'x=%1.4f, y=%1.4f' % (x, y)
+        ax.format_coord = format_coord
+
+        for i in range(frame.gtcrop.shape[0]):
+            ax.annotate(str(i), (int(frame.gtcrop[i, 0]), int(frame.gtcrop[i, 1])))
+
+        plt.show()
+
+    @staticmethod
+    def depthToPCL(dpt, T, background_val=0.):
+
+        # get valid points and transform
+        pts = np.asarray(np.where(~np.isclose(dpt, background_val))).transpose()
+        pts = np.concatenate([pts[:, [1, 0]] + 0.5, np.ones((pts.shape[0], 1), dtype='float32')], axis=1)
+        pts = np.dot(np.linalg.inv(np.asarray(T)), pts.T).T
+        pts = (pts[:, 0:2] / pts[:, 2][:, None]).reshape((pts.shape[0], 2))
+
+        # replace the invalid data
+        depth = dpt[(~np.isclose(dpt, background_val))]
+
+        # get x and y data in a vectorized way
+        row = (pts[:, 0] - 160.) / 630.131 * depth
+        col = (120. - pts[:, 1]) / 630.131 * depth
+
+        # combine x,y,depth
+        return np.column_stack((row, col, depth))
+
+class MYImporter(DepthImporter):
+    """
+    provide functionality to load data from the NYU hand dataset
+    """
+
+    def __init__(self, basepath, useCache=True, cacheDir='./cache/', refineNet=None,
+                 allJoints=False, hand=None):
+        """
+        Constructor
+        :param basepath: base path of the ICVL dataset
+        :return:
+        """
+        super(MYImporter, self).__init__(630.131, 630.131, 320., 240., hand)
+
+        self.depth_map_size = (640, 480) # FLAG: notice size!!!
+        self.basepath = basepath
+        self.useCache = useCache
+        self.cacheDir = cacheDir
+        self.allJoints = allJoints
+        self.numJoints = 36
+        if self.allJoints:
+            self.crop_joint_idx = 32
+        else:
+            self.crop_joint_idx = 13
+        self.default_cubes = {'data640': (250, 250, 250),
+                              'data320': (250, 250, 250)}
+        # self.sides = {'train': 'right', 'test_1': 'right', 'test_2': 'right', 'test': 'right', 'train_synth': 'right',
+        #               'test_synth_1': 'right', 'test_synth_2': 'right', 'test_synth': 'right'}
+        # # joint indices used for evaluation of Tompson et al.
+        self.restrictedJointsEval = [0, 3, 6, 9, 12, 15, 18, 21, 24, 25, 27, 30, 31, 32]
+        self.refineNet = refineNet
+
+    def loadDepthMap(self, filename):
+        """
+        Read a depth-map
+        :param filename: file name to load
+        :return: image data of depth image
+        """
+
+        img = Image.open(filename)
+        # top 8 bits of depth are packed into green channel and lower 8 bits into blue
+        assert len(img.getbands()) == 3
+        r, g, b = img.split()
+        r = np.asarray(r, np.int32)
+        g = np.asarray(g, np.int32)
+        b = np.asarray(b, np.int32)
+        dpt = np.bitwise_or(np.left_shift(g, 8), b)
+
+        # print ("R:,",r, "g:, ",g ,"b: ",b)
+        imgdata = np.asarray(dpt, np.float32)
+
+        return imgdata
+
+    def getDepthMapNV(self):
+        """
+        Get the value of invalid depth values in the depth map
+        :return: value
+        """
+        return 32001
+
+    def loadFileNames(self, seqName, Nmax=float('inf'), shuffle=False, rng=None, docom=False, cube=None):
+        """
+                Load an image sequence from the dataset (without label for test data)
+                :param seqName: sequence name, e.g. test
+                :param Nmax: maximum number of samples to load
+                :return: returns named image sequence
+                """
+        if cube is None:
+            config = {'cube': self.default_cubes[seqName]}
+        else:
+            assert isinstance(cube, tuple)
+            assert len(cube) == 3
+            config = {'cube': cube}
+
+        pickleCache = '{}/{}_{}_{}_{}_{}_{}__cache.pkl'.format(self.cacheDir, self.__class__.__name__, seqName,
+                                                               self.hand, self.allJoints,
+                                                               HandDetector.detectionModeToString(docom,
+                                                                                                  self.refineNet is not None),
+                                                               config['cube'][0])
+        if self.useCache:
+            if os.path.isfile(pickleCache):
+                print("Loading cache data from {}".format(pickleCache))
+                f = open(pickleCache, 'rb')
+                (seqName, data, config) = cPickle.load(f)
+                f.close()
+
+                # shuffle data
+                if shuffle and rng is not None:
+                    print("Shuffling")
+                    rng.shuffle(data)
+                if not (np.isinf(Nmax)):
+                    return NamedImgSequence(seqName, data[0:Nmax], config)
+                else:
+                    return NamedImgSequence(seqName, data, config)
+
+        self.loadRefineNetLazy(self.refineNet)
+
+        # Load the dataset
+        objdir = '{}/{}/'.format(self.basepath, seqName)
+        seqNames = []
+        sort_names = []
+
+        for file in os.listdir(objdir):
+            if file.endswith(".png"):
+                sort_names.append(file)
+        sort_names = sorted(sort_names)
+        for img_name in sort_names:
+            depth_path = os.path.join(objdir,img_name)
+            # print depth_path
+            seqNames.append(depth_path)
+
+        return seqNames
+
+    def loadBaseline(self, filename, gt=None):
+        """
+        Load baseline data
+        :param filename: file name of data
+        :return: list with joint coordinates
+        """
+
+        if gt is not None:
+            mat = scipy.io.loadmat(filename)
+            names = mat['conv_joint_names'][0]
+            joints = mat['pred_joint_uvconf'][0]
+
+            self.numJoints = names.shape[0]
+
+            data = []
+            for dat in range(min(joints.shape[0], gt.shape[0])):
+                fname = '{0:s}/depth_1_{1:07d}.png'.format(os.path.split(filename)[0], dat+1)
+                if not os.path.isfile(fname):
+                    continue
+                dm = self.loadDepthMap(fname)
+                # joints in image coordinates
+                ev = np.zeros((self.numJoints, 3), np.float32)
+                jt = 0
+                for i in range(joints.shape[1]):
+                    if np.count_nonzero(joints[dat, i, :]) == 0:
+                        continue
+                    ev[jt, 0] = joints[dat, i, 0]
+                    ev[jt, 1] = joints[dat, i, 1]
+                    ev[jt, 2] = dm[int(ev[jt, 1]), int(ev[jt, 0])]
+                    jt += 1
+
+                for jt in range(ev.shape[0]):
+                    #if ev[jt,2] == 2001. or ev[jt,2] == 0.:
+                    if abs(ev[jt, 2] - gt[dat, 13, 2]) > 150.:
+                        ev[jt, 2] = gt[dat, jt, 2]#np.clip(ev[jt,2],gt[dat,13,2]-150.,gt[dat,13,2]+150.) # set to groundtruth if unknown
+
+                ev3D = self.jointsImgTo3D(ev)
+                data.append(ev3D)
+
+            return data
+        else:
+
+            def nonblank_lines(f):
+                for l in f:
+                    line = l.rstrip()
+                    if line:
+                        yield line
+
+            inputfile = open(filename)
+            # first line specifies the number of 3D joints
+            self.numJoints = len(inputfile.readline().split(' ')) / 3
+            inputfile.seek(0)
+
+            data = []
+            for line in nonblank_lines(inputfile):
+                part = line.split(' ')
+                # joints in image coordinates
+                ev = np.zeros((self.numJoints, 3), np.float32)
+                for joint in range(ev.shape[0]):
+                    for xyz in range(0, 3):
+                        ev[joint, xyz] = part[joint*3+xyz]
+
+                gt3Dworld = self.jointsImgTo3D(ev)
+
+                data.append(gt3Dworld)
+
+            return data
+
+    def loadBaseline2D(self, filename):
+        """
+        Load baseline data
+        :param filename: file name of data
+        :return: list with joint coordinates
+        """
+
+        mat = scipy.io.loadmat(filename)
+        names = mat['conv_joint_names'][0]
+        joints = mat['pred_joint_uvconf'][0]
+
+        self.numJoints = names.shape[0]
+
+        data = []
+        for dat in range(joints.shape[0]):
+            # joints in image coordinates
+            ev = np.zeros((self.numJoints, 2), np.float32)
+            jt = 0
+            for i in range(joints.shape[1]):
+                if np.count_nonzero(joints[dat, i, :]) == 0:
+                    continue
+                ev[jt, 0] = joints[dat, i, 0]
+                ev[jt, 1] = joints[dat, i, 1]
+                jt += 1
+
+            data.append(ev)
+
+        return data
+
+    def jointsImgTo3D(self, sample):
+        """
+        Normalize sample to metric 3D
+        :param sample: joints in (x,y,z) with x,y in image coordinates and z in mm
+        :return: normalized joints in mm
+        """
+        ret = np.zeros((sample.shape[0], 3), np.float32)
+        for i in xrange(sample.shape[0]):
+            ret[i] = self.jointImgTo3D(sample[i])
+        return ret
+
+    def jointImgTo3D(self, sample):
+        """
+        Normalize sample to metric 3D
+        :param sample: joints in (x,y,z) with x,y in image coordinates and z in mm
+        :return: normalized joints in mm
+        """
+        ret = np.zeros((3,), np.float32)
+        ret[0] = (sample[0] - self.ux) * sample[2] / self.fx
+        ret[1] = (self.uy - sample[1]) * sample[2] / self.fy
+        ret[2] = sample[2]
+        return ret
+
+    def joints3DToImg(self, sample):
+        """
+        Denormalize sample from metric 3D to image coordinates
+        :param sample: joints in (x,y,z) with x,y and z in mm
+        :return: joints in (x,y,z) with x,y in image coordinates and z in mm
+        """
+        ret = np.zeros((sample.shape[0], 3), np.float32)
+        for i in xrange(sample.shape[0]):
+            ret[i] = self.joint3DToImg(sample[i])
+        return ret
+
+    def joint3DToImg(self, sample):
+        """
+        Denormalize sample from metric 3D to image coordinates
+        :param sample: joints in (x,y,z) with x,y and z in mm
+        :return: joints in (x,y,z) with x,y in image coordinates and z in mm
+        """
+        ret = np.zeros((3, ), np.float32)
+        if sample[2] == 0.:
+            ret[0] = self.ux
+            ret[1] = self.uy
+            return ret
+        ret[0] = sample[0]/sample[2]*self.fx+self.ux
+        ret[1] = self.uy-sample[1]/sample[2]*self.fy
+        ret[2] = sample[2]
+        return ret
+
+    def getCameraIntrinsics(self):
+        """
+        Get intrinsic camera matrix
+        :return: 3x3 intrinsic camera matrix
+        """
+        ret = np.zeros((3, 3), np.float32)
+        ret[0, 0] = self.fx
+        ret[1, 1] = -self.fy
+        ret[2, 2] = 1
+        ret[0, 2] = self.ux
+        ret[1, 2] = self.uy
+        return ret
+
+    def getCameraProjection(self):
+        """
+        Get homogenous camera projection matrix
+        :return: 4x4 camera projection matrix
+        """
+        ret = np.zeros((4, 4), np.float32)
+        ret[0, 0] = self.fx
+        ret[1, 1] = -self.fy
+        ret[2, 2] = 1.
+        ret[0, 2] = self.ux
+        ret[1, 2] = self.uy
+        ret[3, 2] = 1.
+        return ret
+
+    def showAnnotatedDepth(self, frame):
+        """
+        Show the depth image
+        :param frame: image to show
+        :return:
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        print("img min {}, max {}".format(frame.dpt.min(), frame.dpt.max()))
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(frame.dpt, cmap=matplotlib.cm.jet, interpolation='nearest')
+        ax.scatter(frame.gtcrop[:, 0], frame.gtcrop[:, 1])
+
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[1::-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[1::-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[3:1:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[3:1:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[5:3:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[5:3:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[7:5:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[7:5:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[10:7:-1, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[10:7:-1, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[11, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[11, 1])), c='r')
+        ax.plot(np.hstack((frame.gtcrop[13, 0], frame.gtcrop[12, 0])), np.hstack((frame.gtcrop[13, 1], frame.gtcrop[12, 1])), c='r')
+
+        def format_coord(x, y):
+            numrows, numcols = frame.dpt.shape
+            col = int(x+0.5)
+            row = int(y+0.5)
+            if col>=0 and col<numcols and row>=0 and row<numrows:
+                z = frame.dpt[row,col]
+                return 'x=%1.4f, y=%1.4f, z=%1.4f' % (x, y, z)
+            else:
+                return 'x=%1.4f, y=%1.4f' % (x, y)
+        ax.format_coord = format_coord
+
+        for i in range(frame.gtcrop.shape[0]):
+            ax.annotate(str(i), (int(frame.gtcrop[i, 0]), int(frame.gtcrop[i, 1])))
+
+        plt.show()
+
+    @staticmethod
+    def depthToPCL(dpt, T, background_val=0.):
+
+        # get valid points and transform
+        pts = np.asarray(np.where(~np.isclose(dpt, background_val))).transpose()
+        pts = np.concatenate([pts[:, [1, 0]] + 0.5, np.ones((pts.shape[0], 1), dtype='float32')], axis=1)
+        pts = np.dot(np.linalg.inv(np.asarray(T)), pts.T).T
+        pts = (pts[:, 0:2] / pts[:, 2][:, None]).reshape((pts.shape[0], 2))
+
+        # replace the invalid data
+        depth = dpt[(~np.isclose(dpt, background_val))]
+
+        # get x and y data in a vectorized way
+        row = (pts[:, 0] - 320.) / 630.131 * depth
+        col = (240. - pts[:, 1]) / 630.131 * depth
+
+        # combine x,y,depth
+        return np.column_stack((row, col, depth))

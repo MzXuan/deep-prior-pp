@@ -29,6 +29,7 @@ import cv2
 import time
 import numpy
 import copy
+import csv
 from data.transformations import rotatePoints3D, rotatePoint3D
 from net.poseregnet import PoseRegNet, PoseRegNetParams
 from net.resnet import ResNet, ResNetParams
@@ -44,6 +45,15 @@ __version__ = "1.0"
 __maintainer__ = "Markus Oberweger"
 __email__ = "oberweger@icg.tugraz.at"
 __status__ = "Development"
+
+
+def write_file(data_list, file_name='../result/test.csv'):
+    # emg: data[1] ; imu: data[2]; cls: data[3]
+    print ("write to csv")
+    with open(file_name, 'a') as csvfile:
+        data_writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for data in data_list:
+            data_writer.writerow(data)
 
 
 class RealtimeHandposePipeline(object):
@@ -107,6 +117,7 @@ class RealtimeHandposePipeline(object):
         # show different results
         self.show_pose = False
         self.show_crop = False
+        self.data_list = []
 
     def initNets(self):
         """
@@ -282,6 +293,9 @@ class RealtimeHandposePipeline(object):
             starts = time.time()
             img, poseimg = self.show(frame, pose, com3D)
 
+            # print ("com3D: ", com3D)
+            self.data_list.append(com3D)
+
             img = self.addStatusBar(img)
             cv2.imshow('frame', img)
             self.lastshow = time.time()
@@ -297,8 +311,12 @@ class RealtimeHandposePipeline(object):
                 print("-> {}ms per frame".format((time.time() - start)*1000.))
 
         # When everything done, release the capture
+        write_file(self.data_list)
         cv2.destroyAllWindows()
         device.stop()
+
+
+
 
     def detect(self, frame):
         """
@@ -336,6 +354,7 @@ class RealtimeHandposePipeline(object):
             crop, M, com = hd.cropArea3D(com=loc, size=self.sync['config']['cube'],
                                          dsize=(self.poseNet.layers[0].cfgParams.inputDim[2], self.poseNet.layers[0].cfgParams.inputDim[3]))
             com3D = self.importer.jointImgTo3D(com)
+            print ("com: ", com, "com3D: ", com3D)
             sc = (self.sync['config']['cube'][2] / 2.)
             crop[crop == 0] = com3D[2] + sc
             crop.clip(com3D[2] - sc, com3D[2] + sc)
