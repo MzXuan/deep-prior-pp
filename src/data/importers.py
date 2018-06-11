@@ -166,8 +166,10 @@ class DepthImporter(object):
         depth = dpt[(~np.isclose(dpt, background_val))]
 
         # get x and y data in a vectorized way
-        row = (pts[:, 0] - 160.) / 241.42 * depth
-        col = (pts[:, 1] - 120.) / 241.42 * depth
+        row = (pts[:, 0] - 320.) / 630.131 * depth
+        col = (pts[:, 1] - 240.) / 630.131 * depth
+        # row = (pts[:, 0] - ux) / fx * depth
+        # col = (pts[:, 1] - uy) / fy * depth
 
         # combine x,y,depth
         return np.column_stack((row, col, depth))

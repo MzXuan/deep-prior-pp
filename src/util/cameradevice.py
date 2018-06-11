@@ -363,8 +363,8 @@ class RealsenseCameraDevice(CameraDevice):
         """
         self.pipeline = rs.pipeline()
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 15)
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 6)
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 6)
         self.pipeline.start(config)
 
 
@@ -387,7 +387,7 @@ class RealsenseCameraDevice(CameraDevice):
             print "Failed updating depth data:"
         else:
             # Convert images to numpy arrays
-            dpt = numpy.asanyarray(depth_frame.get_data())
+            dpt = numpy.asanyarray(depth_frame.get_data(), dtype='float32')
             return True, dpt
 
     def getRGB(self):

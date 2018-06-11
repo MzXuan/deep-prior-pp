@@ -28,7 +28,7 @@ from net.poseregnet import PoseRegNetParams, PoseRegNet
 from net.resnet import ResNetParams, ResNet
 from net.scalenet import ScaleNetParams, ScaleNet
 from util.realtimehandposepipeline import RealtimeHandposePipeline
-from data.importers import DepthImporter
+from data.camera_importers import CameraImporter
 from util.cameradevice import RealsenseCameraDevice
 
 
@@ -46,39 +46,39 @@ if __name__ == '__main__':
     rng = numpy.random.RandomState(23455)
 
     dev = RealsenseCameraDevice()
-    di = DepthImporter(630.131,630.131,320,240)
+    di = CameraImporter(fx=630.131, fy=630.131, resx=640., resy=480.)
 
-    # MSRA model
-    poseNetParams = PoseRegNetParams(type=11, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=21, nDims=3)
-    poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
-    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1,
-                                     nDims=3)
-    comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
-    # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
-    # config = {'fx': 315.066, 'fy': 315.066, 'cube': (200, 200, 200)}
-    config = {'fx': 630.131, 'fy': 630.131, 'cube': (250, 250, 250)}
-    # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
-    # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
-    rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
-
-    # use depth camera
-    rtp.processVideo(dev)
-
-
-    # # NYU model
-    # # load trained network (NYU model)
-    # poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=14, nDims=3)
-    # poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
-    # # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
-    # comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1, nDims=3)
-    # comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
-    # # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
+    # # MSRA model
+    # poseNetParams = PoseRegNetParams(type=11, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=21, nDims=3)
+    # poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
+    # comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1,
+    #                                  nDims=3)
+    # comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
     # # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
-    # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250,250,250)}
+    # # config = {'fx': 315.066, 'fy': 315.066, 'cube': (200, 200, 200)}
+    # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250, 250, 250)}
     # # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
     # # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
     # rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
     #
+    # # use depth camera
     # rtp.processVideo(dev)
+
+
+    # NYU model
+    # load trained network (NYU model)
+    poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=14, nDims=3)
+    poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
+    # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
+    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1, nDims=3)
+    comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
+    # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
+    # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
+    config = {'fx': 630.131, 'fy': 630.131, 'cube': (250,250,250)}
+    # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
+    # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
+    rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
+
+    rtp.processVideo(dev)
 
 

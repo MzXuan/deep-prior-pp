@@ -112,9 +112,8 @@ if __name__ == '__main__':
     rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
 
     #use filenames
-    # filenames = testSeqs
-    # print filenames
-    # dev = FileDevice(filenames,di)
+    filenames = testSeqs
+    dev = FileDevice(filenames,di)
     # rtp.processVideoThreaded(dev)
 
     rtp.processVideo(dev)
