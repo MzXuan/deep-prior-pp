@@ -27,6 +27,7 @@ import time
 import numpy
 import cv2
 import scipy.misc
+import pyrealsense2 as rs
 # import lib_dscapture as dsc
 # import openni
 
@@ -343,6 +344,59 @@ class DepthSenseCameraDevice(CameraDevice):
             dpt = numpy.asarray(self.color.get_tuple_depth_map(), dtype='float32').reshape(self.color.map.height, self.color.map.width)
 
             return True, dpt
+
+class RealsenseCameraDevice(CameraDevice):
+    """
+    Class for Realsense devices,
+    """
+    def __init__(self, mirror=False):
+        """
+        Initialize device
+        :param mirror: mirror image
+        """
+        super(RealsenseCameraDevice, self).__init__(mirror)
+
+    def start(self):
+        """
+        Start device
+        :return:
+        """
+        self.pipeline = rs.pipeline()
+        config = rs.config()
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 15)
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
+        self.pipeline.start(config)
+
+
+    def stop(self):
+        """
+        Stop device
+        :return:
+        """
+        self.pipeline.stop()
+
+    def getDepth(self):
+        """
+        Return a median smoothed depth image
+        :return: depth data as numpy array
+        """
+        try:
+            frames = self.pipeline.wait_for_frames()
+            depth_frame = frames.get_depth_frame()
+        except:
+            print "Failed updating depth data:"
+        else:
+            # Convert images to numpy arrays
+            dpt = numpy.asanyarray(depth_frame.get_data())
+            return True, dpt
+
+    def getRGB(self):
+        """
+        Return a median smoothed depth image
+        :return: depth data as numpy array
+        """
+        raise NotImplementedError("!")
+
 
 
 class FileDevice(CameraDevice):

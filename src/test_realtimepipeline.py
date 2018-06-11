@@ -30,8 +30,10 @@ from net.resnet import ResNetParams, ResNet
 from net.scalenet import ScaleNetParams, ScaleNet
 from util.realtimehandposepipeline import RealtimeHandposePipeline
 from data.importers import ICVLImporter, NYUImporter, MSRA15Importer, MYImporter320, MYImporter
-# from util.cameradevice import CreativeCameraDevice, FileDevice
 from util.cameradevice import FileDevice
+from data.importers import DepthImporter
+from util.cameradevice import RealsenseCameraDevice
+
 
 
 __author__ = "Markus Oberweger <oberweger@icg.tugraz.at>"
@@ -61,27 +63,27 @@ if __name__ == '__main__':
     # di = NYUImporter('../data/NYU/') # only read file names
     # Seq2 = di.loadFileNames('test_1')
     # testSeqs = Seq2
-    #
-    di = MYImporter320('/home/xuan/Code/RealSense2Sample/data/')  # only read file names
-    Seq2 = di.loadFileNames('data320')
-    testSeqs = Seq2
 
-    # di = MYImporter('/home/xuan/Code/RealSense2Sample/data/')  # only read file names
-    # Seq2 = di.loadFileNames('data640')
+    # di = MYImporter320('/home/xuan/Code/RealSense2Sample/data/')  # only read file names
+    # Seq2 = di.loadFileNames('data320')
     # testSeqs = Seq2
 
+    di = MYImporter('/home/xuan/Code/RealSense2Sample/data/')  # only read file names
+    Seq2 = di.loadFileNames('data640')
+    testSeqs = Seq2
+
     # # MSRA model
-    poseNetParams = PoseRegNetParams(type=11, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=21, nDims=3)
-    poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
-    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1,
-                                     nDims=3)
-    comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
-    # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
-    config = {'fx': 315.066, 'fy': 315.066, 'cube': (200, 200, 200)}
-    # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250, 250, 250)}
-    # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
-    # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
-    rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
+    # poseNetParams = PoseRegNetParams(type=11, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=21, nDims=3)
+    # poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
+    # comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1,
+    #                                  nDims=3)
+    # comrefNetParams.loadFile = "./eval/net_MSRA15_COM_AUGMENT.pkl"
+    # # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
+    # config = {'fx': 315.066, 'fy': 315.066, 'cube': (200, 200, 200)}
+    # # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250, 250, 250)}
+    # # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
+    # # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
+    # rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
 
     # # # use filenames
     # filenames = []
@@ -96,24 +98,25 @@ if __name__ == '__main__':
 
 
     # # NYU model
-    # # load trained network (NYU model)
-    # poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=14, nDims=3)
-    # poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
-    # # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
-    # comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1, nDims=3)
-    # comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
-    # # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
-    # # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
-    # config = {'fx': 630.131, 'fy': 630.131, 'cube': (250,250,250)}
-    # # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
-    # # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
-    # rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
+    # load trained network (NYU model)
+    poseNetParams = ResNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=14, nDims=3)
+    poseNetParams.loadFile = "./eval/NYU_network_prior.pkl"
+    # poseNetParams.loadFile = "./eval/ICVL_network_prior.pkl"
+    comrefNetParams = ScaleNetParams(type=1, nChan=1, wIn=128, hIn=128, batchSize=8, resizeFactor=2, numJoints=1, nDims=3)
+    comrefNetParams.loadFile = "./eval/net_NYU_COM_AUGMENT.pkl"
+    # comrefNetParams.loadFile = "./eval/net_ICVL_COM_AUGMENT.pkl"
+    # config = {'fx': 588., 'fy': 587., 'cube': (300, 300, 300)}
+    config = {'fx': 630.131, 'fy': 630.131, 'cube': (250,250,250)}
+    # config = {'fx': 241.42, 'fy': 241.42, 'cube': (250, 250, 250)}
+    # config = {'fx': 224.5, 'fy': 230.5, 'cube': (300, 300, 300)}  # Creative Gesture Camera
+    rtp = RealtimeHandposePipeline(poseNetParams, config, di, verbose=False, comrefNet=comrefNetParams)
 
     #use filenames
-    filenames = testSeqs
+    # filenames = testSeqs
     # print filenames
-    dev = FileDevice(filenames,di)
+    # dev = FileDevice(filenames,di)
     # rtp.processVideoThreaded(dev)
+
     rtp.processVideo(dev)
 
 

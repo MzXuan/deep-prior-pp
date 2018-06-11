@@ -61,7 +61,7 @@ class DepthImporter(object):
         self.fy = fy
         self.ux = ux
         self.uy = uy
-        self.depth_map_size = (320, 240)
+        self.depth_map_size = (2*ux, 2*uy)
         self.refineNet = None
         self.crop_joint_idx = 0
         self.hand = hand
