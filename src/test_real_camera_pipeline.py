@@ -48,6 +48,8 @@ if __name__ == '__main__':
     dev = RealsenseCameraDevice()
     di = CameraImporter(fx=630.131, fy=630.131, resx=640., resy=480.)
 
+    # di = CameraImporter(fx=315.066, fy=315.066, resx=640., resy=480.)
+
     # # MSRA model
     # poseNetParams = PoseRegNetParams(type=11, nChan=1, wIn=128, hIn=128, batchSize=8, numJoints=21, nDims=3)
     # poseNetParams.loadFile = "./eval/MSRA_network_prior_0.pkl"
